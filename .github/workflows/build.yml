@@ -35,6 +35,8 @@ jobs:
         jf --version
         jf rt ping
         # jf config show
+     - name: Fix Code Formatting with Spotless
+       run: mvn spotless:apply
      - name: Build Maven Package
        run: |
          jf mvnc --repo-resolve-releases alpha-mvn-virtual --repo-resolve-snapshots alpha-mvn-virtual --repo-deploy-releases alpha-mvn-virtual --repo-deploy-snapshots alpha-mvn-virtual
