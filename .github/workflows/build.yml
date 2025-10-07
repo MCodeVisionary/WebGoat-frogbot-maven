@@ -34,13 +34,18 @@ jobs:
        run: |
         jf --version
         jf rt ping
-        # jf config show
+        jf mvnc --repo-resolve-releases alpha-mvn-virtual --repo-resolve-snapshots alpha-mvn-virtual --repo-deploy-releases alpha-mvn-virtual --repo-deploy-snapshots alpha-mvn-virtual
      - name: Fix Code Formatting with Spotless
        run: mvn spotless:apply
+     - name: Curation Audit
+       run: |
+        jf ca
      - name: Build Maven Package
        run: |
-         jf mvnc --repo-resolve-releases alpha-mvn-virtual --repo-resolve-snapshots alpha-mvn-virtual --repo-deploy-releases alpha-mvn-virtual --repo-deploy-snapshots alpha-mvn-virtual
-         jf mvn clean install -f pom.xml -Dmaven.test.skip=true -Dartifactory.publish.artifacts=true --build-name ${{env.BUILD_NAME}} --build-number ${{github.run_number}}
+        jf mvn clean install -f pom.xml -Dmaven.test.skip=true -Dartifactory.publish.artifacts=true --build-name ${{env.BUILD_NAME}} --build-number ${{github.run_number}}
+     - name: Security Audit
+       run: |
+        jf audit
      - name: Login to JFrog Docker repo
        uses: docker/login-action@v3
        with:
@@ -52,9 +57,6 @@ jobs:
          jf docker build . -t soleng.jfrog.io/alpha-mvn-virtual/webgoat-maven:${{github.run_number}}
          jf docker scan soleng.jfrog.io/alpha-mvn-virtual/webgoat-maven:${{github.run_number}}
          jf docker push soleng.jfrog.io/alpha-mvn-virtual/webgoat-maven:${{github.run_number}}
-     - name: Audit
-       run: |
-         jf audit
      - name: Publish build build-info
        run: |
          # Collect and store environment variables in the build-info
