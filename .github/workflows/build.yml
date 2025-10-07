@@ -37,10 +37,17 @@ jobs:
         distribution: 'temurin'
      - name: Setup JFrog CLI
        uses: jfrog/setup-jfrog-cli@v4
+       id: setup-cli
        env:
         JF_URL: ${{ vars.JF_URL }}
        with:
         oidc-provider-name: mpatel-git
+     - name: Login to JFrog Docker repo
+       uses: docker/login-action@v3
+       with:
+        registry: ${{ secrets.JF_URL }}
+        username: ${{steps.setup-cli.outputs.oidc-user}}
+        password: ${{steps.setup-cli.outputs.oidc-token}}
      - name: Health check JFrog Artifactory instance 🐸
        run: |
         jf --version
@@ -57,12 +64,6 @@ jobs:
      - name: Security Audit
        run: |
         jf audit
-     - name: Login to JFrog Docker repo
-       uses: docker/login-action@v3
-       with:
-        registry: ${{ secrets.JF_URL }}
-        username: ${{ secrets.JF_USER }}
-        password: ${{ secrets.JF_PASSWORD }}
      - name: Docker Build 🐳🐸 and scan
        run: |
          jf docker build . -t soleng.jfrog.io/${{ env.RT_REPO_DOCKER_VIRTUAL}}/maven-webgoat:${{github.run_number}}
