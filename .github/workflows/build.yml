@@ -17,6 +17,10 @@ permissions:
   contents: read
   security-events: write # Required for uploading code scanning.
 
+env:
+  RT_REPO_MVN_VIRTUAL: "alpha-mvn-virtual"
+  RT_REPO_DOCKER_VIRTUAL: "alpha-docker-virtual"
+
 jobs:
  mvn-build-and-publish:
    runs-on: ubuntu-latest
@@ -41,7 +45,7 @@ jobs:
        run: |
         jf --version
         jf rt ping
-        jf mvnc --repo-resolve-releases alpha-mvn-virtual --repo-resolve-snapshots alpha-mvn-virtual --repo-deploy-releases alpha-mvn-virtual --repo-deploy-snapshots alpha-mvn-virtual
+        jf mvnc --repo-resolve-releases ${{ env.RT_REPO_MVN_VIRTUAL}} --repo-resolve-snapshots ${{ env.RT_REPO_MVN_VIRTUAL}} --repo-deploy-releases ${{ env.RT_REPO_MVN_VIRTUAL}} --repo-deploy-snapshots ${{ env.RT_REPO_MVN_VIRTUAL}}
      - name: Fix Code Formatting with Spotless
        run: mvn spotless:apply
      - name: Curation Audit
@@ -61,9 +65,9 @@ jobs:
         password: ${{ secrets.JF_PASSWORD }}
      - name: Docker Build 🐳🐸 and scan
        run: |
-         jf docker build . -t soleng.jfrog.io/alpha-mvn-virtual/webgoat-maven:${{github.run_number}}
-         jf docker scan soleng.jfrog.io/alpha-mvn-virtual/webgoat-maven:${{github.run_number}}
-         jf docker push soleng.jfrog.io/alpha-mvn-virtual/webgoat-maven:${{github.run_number}}
+         jf docker build . -t soleng.jfrog.io/${{ env.RT_REPO_DOCKER_VIRTUAL}}/maven-webgoat:${{github.run_number}}
+         jf docker scan soleng.jfrog.io/${{ env.RT_REPO_DOCKER_VIRTUAL}}/maven-webgoat:${{github.run_number}}
+         jf docker push soleng.jfrog.io/${{ env.RT_REPO_DOCKER_VIRTUAL}}/maven-webgoat:${{github.run_number}}
      - name: Publish build build-info
        run: |
          # Collect and store environment variables in the build-info
