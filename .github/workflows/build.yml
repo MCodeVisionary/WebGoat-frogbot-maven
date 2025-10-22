@@ -10,6 +10,17 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  actions: read # for detecting the Github Actions environment.
+  id-token: write # for creating OIDC tokens for signing.
+  packages: write # for uploading attestations.
+  contents: read
+  security-events: write # Required for uploading code scanning.
+
+env:
+  RT_REPO_MVN_VIRTUAL: "alpha-mvn-virtual"
+  RT_REPO_DOCKER_VIRTUAL: "alpha-docker-virtual"
+
 jobs:
  mvn-build-and-publish:
    runs-on: ubuntu-latest
@@ -24,37 +35,40 @@ jobs:
        with:
         java-version: '17'
         distribution: 'temurin'
-     - name: JFrog CLI setup 🐸
+     - name: Setup JFrog CLI
        uses: jfrog/setup-jfrog-cli@v4
+       id: setup-cli
        env:
-        JF_URL: ${{ secrets.JF_URL }}
-        JF_ACCESS_TOKEN: ${{secrets.JF_ACCESS_TOKEN}}
-        JF_GIT_TOKEN: ${{ secrets.JF_GIT_TOKEN }}
+        JF_URL: ${{ vars.JF_URL }}
+       with:
+        oidc-provider-name: mpatel-git
+     - name: Login to JFrog Docker repo
+       uses: docker/login-action@v3
+       with:
+        registry: ${{ vars.JF_URL }}
+        username: ${{steps.setup-cli.outputs.oidc-user}}
+        password: ${{steps.setup-cli.outputs.oidc-token}}
      - name: Health check JFrog Artifactory instance 🐸
        run: |
         jf --version
         jf rt ping
-        # jf config show
+        jf mvnc --repo-resolve-releases ${{ env.RT_REPO_MVN_VIRTUAL}} --repo-resolve-snapshots ${{ env.RT_REPO_MVN_VIRTUAL}} --repo-deploy-releases ${{ env.RT_REPO_MVN_VIRTUAL}} --repo-deploy-snapshots ${{ env.RT_REPO_MVN_VIRTUAL}}
      - name: Fix Code Formatting with Spotless
        run: mvn spotless:apply
+     - name: Curation Audit
+       run: |
+        jf ca --format=table --threads=100
      - name: Build Maven Package
        run: |
-         jf mvnc --repo-resolve-releases alpha-mvn-virtual --repo-resolve-snapshots alpha-mvn-virtual --repo-deploy-releases alpha-mvn-virtual --repo-deploy-snapshots alpha-mvn-virtual
-         jf mvn clean install -f pom.xml -Dmaven.test.skip=true -Dartifactory.publish.artifacts=true --build-name ${{env.BUILD_NAME}} --build-number ${{github.run_number}}
-     - name: Login to JFrog Docker repo
-       uses: docker/login-action@v3
-       with:
-        registry: ${{ secrets.JF_URL }}
-        username: ${{ secrets.JF_USER }}
-        password: ${{ secrets.JF_PASSWORD }}
+        jf mvn clean install -f pom.xml -Dmaven.test.skip=true -Dartifactory.publish.artifacts=true --build-name ${{env.BUILD_NAME}} --build-number ${{github.run_number}}
+     - name: Security Audit
+       run: |
+        jf audit
      - name: Docker Build 🐳🐸 and scan
        run: |
-         jf docker build . -t soleng.jfrog.io/alpha-mvn-virtual/webgoat-maven:${{github.run_number}}
-         jf docker scan soleng.jfrog.io/alpha-mvn-virtual/webgoat-maven:${{github.run_number}}
-         jf docker push soleng.jfrog.io/alpha-mvn-virtual/webgoat-maven:${{github.run_number}}
-     - name: Audit
-       run: |
-         jf audit
+         jf docker build . -t soleng.jfrog.io/${{ env.RT_REPO_DOCKER_VIRTUAL}}/maven-webgoat:${{github.run_number}}
+         jf docker scan soleng.jfrog.io/${{ env.RT_REPO_DOCKER_VIRTUAL}}/maven-webgoat:${{github.run_number}}
+         jf docker push soleng.jfrog.io/${{ env.RT_REPO_DOCKER_VIRTUAL}}/maven-webgoat:${{github.run_number}}
      - name: Publish build build-info
        run: |
          # Collect and store environment variables in the build-info
