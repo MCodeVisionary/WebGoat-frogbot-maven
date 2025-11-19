@@ -1,4 +1,4 @@
-name: 'maven-webgoat'
+name: 'mpatel-maven-webgoat'
 on:
   push:
     branches:
